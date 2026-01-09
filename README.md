@@ -44,7 +44,7 @@ git add .
 git commit -m "Initial commit: Quran Online PWA"
 
 # Create repository baru di GitHub, lalu:
-git remote add origin https://github.com/USERNAME/quran-online.git
+git remote add origin https://github.com/USERNAME/quran_online.git
 git branch -M main
 git push -u origin main
 ```

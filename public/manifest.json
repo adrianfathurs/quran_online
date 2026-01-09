@@ -2,21 +2,21 @@
   "name": "Quran Online - Jadwal Sholat & Puasa",
   "short_name": "Quran Online",
   "description": "Website Islami untuk Jadwal Sholat, Al-Qur'an, dan Jadwal Puasa 2026",
-  "start_url": "/quran-online/",
-  "scope": "/quran-online/",
+  "start_url": "/quran_online/",
+  "scope": "/quran_online/",
   "display": "standalone",
   "background_color": "#FAFAF5",
   "theme_color": "#0F3D2E",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/quran-online/icon-192x192.png",
+      "src": "/quran_online/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/quran-online/icon-512x512.png",
+      "src": "/quran_online/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
