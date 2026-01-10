@@ -6,7 +6,7 @@ import Footer from "@/components/layout/Footer";
 export const metadata: Metadata = {
   title: "Quran Online - Website Islami",
   description: "Jadwal Sholat, Al-Qur'an, dan Jadwal Puasa 2026",
-  manifest: "/manifest.json",
+  manifest: "/quran_online/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -44,8 +44,8 @@ export default function RootLayout({
   return (
     <html lang="id">
       <head>
-        <link rel="icon" href="/favicon.ico" />
-        <link rel="apple-touch-icon" href="/icon-192x192.png" />
+        <link rel="icon" href="/quran_online/favicon.ico" />
+        <link rel="apple-touch-icon" href="/quran_online/icon-192x192.png" />
       </head>
       <body className="antialiased min-h-screen flex flex-col">
         <Header />

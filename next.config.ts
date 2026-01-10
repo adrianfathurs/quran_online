@@ -3,8 +3,8 @@ import withPWA from "@ducanh2912/next-pwa";
 
 const nextConfig: NextConfig = {
   // GitHub Pages configuration
-  basePath: process.env.NODE_ENV === 'production' ? '/quran_online' : '',
-  assetPrefix: process.env.NODE_ENV === 'production' ? '/quran_online' : '',
+  basePath: '/quran_online',
+  assetPrefix: '/quran_online',
 
   // Static export for GitHub Pages
   output: 'export',
