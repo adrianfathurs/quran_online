@@ -24,14 +24,52 @@ export interface PrayerTimesRequest {
 
 export interface PrayerScheduleResponse {
   success?: boolean;
+  service?: string;
   data?: {
+    date?: string;
+    location?: {
+      latitude: number;
+      longitude: number;
+    };
+    calculation_method?: string;
+    madhab?: string;
     prayer_times?: {
       fajr: string;
+      sunrise?: string;
       dhuhr: string;
       asr: string;
       maghrib: string;
       isha: string;
     };
+    prayer_times_detailed?: {
+      fajr: string;
+      sunrise?: string;
+      dhuhr: string;
+      asr: string;
+      maghrib: string;
+      isha: string;
+    };
+    current_status?: {
+      current_prayer: string;
+      next_prayer: string;
+      time_until_next?: string;
+      minutes_until_next?: number;
+    };
+    islamic_info?: {
+      prayer_names?: {
+        fajr: string;
+        dhuhr: string;
+        asr: string;
+        maghrib: string;
+        isha: string;
+      };
+      note?: string;
+    };
+  };
+  timestamp?: string;
+  api_info?: {
+    sadaqah_jariah?: string;
+    usage?: string;
   };
 }
 
