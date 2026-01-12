@@ -16,39 +16,77 @@ export const MAJOR_CITIES: Location[] = [
   { lat: 0.5071, lng: 101.4479, name: 'Pekanbaru' },
 ];
 
-// Prayer Times API - Direct call to Ummah API
+// Prayer Times API - Using Aladhan API (supports CORS)
 export async function getPrayerTimes(
   lat: number,
   lng: number,
   madhab: 'Shafi' | 'Hanafi' = 'Shafi',
   method = 'MuslimWorldLeague'
 ): Promise<PrayerScheduleResponse> {
-  // Build Ummah API URL
-  const apiUrl = new URL('https://ummahapi.com/api/prayer-times');
-  apiUrl.searchParams.append('lat', lat.toString());
-  apiUrl.searchParams.append('lng', lng.toString());
-  apiUrl.searchParams.append('madhab', madhab);
-  apiUrl.searchParams.append('method', method);
+  // Method name to ID mapping for Aladhan API
+  const methodMap: Record<string, number> = {
+    'MuslimWorldLeague': 3,
+    'Egyptian': 5,
+    'Karachi': 1,
+    'UmmAlQura': 4,
+    'Dubai': 8,
+    'MoonsightingCommittee': 9,
+    'NorthAmerica': 2,
+    'Kuwait': 10,
+    'Qatar': 11,
+    'Singapore': 15,
+  };
+
+  const methodId = methodMap[method] ?? 3;
+  const madhabId = madhab === 'Shafi' ? 1 : 2;
+
+  // Build Aladhan API URL
+  const apiUrl = new URL('https://api.aladhan.com/v1/timings');
+  apiUrl.searchParams.append('latitude', lat.toString());
+  apiUrl.searchParams.append('longitude', lng.toString());
+  apiUrl.searchParams.append('method', methodId.toString());
+  apiUrl.searchParams.append('madhab', madhabId.toString());
 
   try {
-    console.log(`[Client] Fetching prayer times from Ummah API: ${apiUrl.toString()}`);
+    console.log(`[Client] Fetching prayer times from Aladhan API: ${apiUrl.toString()}`);
 
-    const response = await fetch(apiUrl.toString(), {
-      headers: {
-        'User-Agent': 'Quran-Online-App/1.0',
-        'Accept': 'application/json',
-      },
-    });
+    const response = await fetch(apiUrl.toString());
 
     if (!response.ok) {
-      console.error(`[Client] Ummah API error: ${response.status} ${response.statusText}`);
+      console.error(`[Client] Aladhan API error: ${response.status} ${response.statusText}`);
       return {};
     }
 
-    const data = await response.json();
-    console.log('[Client] Ummah API response received:', data);
+    const aladhanResponse = await response.json();
+    console.log('[Client] Aladhan API response received:', aladhanResponse);
 
-    return data;
+    if (aladhanResponse.code !== 200 || !aladhanResponse.data) {
+      return {};
+    }
+
+    const timings = aladhanResponse.data.timings;
+
+    // Convert Aladhan format to our format
+    return {
+      success: true,
+      data: {
+        date: aladhanResponse.data.date?.readable,
+        location: {
+          latitude: aladhanResponse.data.meta?.latitude ?? lat,
+          longitude: aladhanResponse.data.meta?.longitude ?? lng,
+        },
+        calculation_method: aladhanResponse.data.meta?.method?.name ?? method,
+        madhab: madhab,
+        prayer_times: {
+          fajr: timings.Fajr,
+          sunrise: timings.Sunrise,
+          dhuhr: timings.Dhuhr,
+          asr: timings.Asr,
+          maghrib: timings.Maghrib,
+          isha: timings.Isha,
+        },
+      },
+    };
   } catch (error) {
     console.error('[Client] Error fetching prayer times:', error);
     return {};
