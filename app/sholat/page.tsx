@@ -39,7 +39,7 @@ export default function SholatPage() {
         if (!isMounted) return;
 
         if (data?.data) {
-          setPrayerTimes(data.data);
+          setPrayerTimes(data);
         } else {
           setError('Failed to load prayer times');
         }
