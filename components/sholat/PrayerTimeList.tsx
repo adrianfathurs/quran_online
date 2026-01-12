@@ -44,6 +44,8 @@ export default function PrayerTimeList({ prayerTimes, isLoading }: PrayerTimeLis
   const { t } = useTranslation();
   const [notificationEnabled, setNotificationEnabled] = useState(false);
   const [nextPrayer, setNextPrayer] = useState<{ name: string; time: string; minutesLeft: number } | null>(null);
+  const [alarmSet, setAlarmSet] = useState(false);
+  const alarmTimeout = useRef<NodeJS.Timeout | null>(null);
   const notificationSentRef = useRef<Set<string>>(new Set());
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -93,6 +95,8 @@ export default function PrayerTimeList({ prayerTimes, isLoading }: PrayerTimeLis
       const currentMinutes = getCurrentTimeInMinutes();
       let nextPrayerFound: { name: string; time: string; minutesLeft: number } | null = null;
 
+      console.log(`[Prayer Timer] Current time: ${Math.floor(currentMinutes / 60)}:${(currentMinutes % 60).toString().padStart(2, '0')}`);
+
       // Find next prayer
       for (const prayer of prayers) {
         const prayerMinutes = timeToMinutes(prayer.time);
@@ -100,6 +104,7 @@ export default function PrayerTimeList({ prayerTimes, isLoading }: PrayerTimeLis
         if (prayerMinutes > currentMinutes) {
           const minutesLeft = prayerMinutes - currentMinutes;
           nextPrayerFound = { name: prayer.name, time: prayer.time, minutesLeft };
+          console.log(`[Prayer Timer] Next prayer: ${prayer.name} at ${prayer.time} (${minutesLeft} minutes left)`);
           break;
         }
       }
@@ -114,19 +119,23 @@ export default function PrayerTimeList({ prayerTimes, isLoading }: PrayerTimeLis
           time: fajrTomorrow.time,
           minutesLeft: minutesUntilMidnight + fajrMinutes,
         };
+        console.log(`[Prayer Timer] Next prayer: ${fajrTomorrow.name} (tomorrow) at ${fajrTomorrow.time} (${nextPrayerFound.minutesLeft} minutes left)`);
       }
 
       setNextPrayer(nextPrayerFound);
 
-      // Check if it's time for prayer (within 1 minute)
+      // Check if it's time for prayer (within 2 minutes window)
       if (nextPrayerFound) {
-        const { name, time } = nextPrayerFound;
+        const { name, time, minutesLeft } = nextPrayerFound;
         const notificationKey = `${name}-${time}`;
 
-        // Only send notification once per prayer time
-        if (nextPrayerFound.minutesLeft === 0 && !notificationSentRef.current.has(notificationKey)) {
+        // Send notification if within 2 minutes of prayer time and not yet sent
+        if (minutesLeft >= 0 && minutesLeft <= 2 && !notificationSentRef.current.has(notificationKey)) {
+          console.log(`[Prayer Timer] 🎯 TRIGGERING NOTIFICATION for ${name} at ${time}`);
           showPrayerTimeNotification(name, time);
           notificationSentRef.current.add(notificationKey);
+        } else if (minutesLeft > 2) {
+          console.log(`[Prayer Timer] ⏰ Waiting... ${minutesLeft} minutes until ${name}`);
         }
       }
     };
@@ -143,12 +152,59 @@ export default function PrayerTimeList({ prayerTimes, isLoading }: PrayerTimeLis
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
+      if (alarmTimeout.current) {
+        clearTimeout(alarmTimeout.current);
+      }
     };
   }, [prayerTimes, notificationEnabled, t]);
 
   const handleEnableNotifications = async () => {
     const granted = await requestNotificationPermission();
     setNotificationEnabled(granted);
+  };
+
+  const handleTestNotification = () => {
+    if (notificationEnabled) {
+      const now = new Date();
+      const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+      showPrayerTimeNotification('Test Sholat', timeStr);
+    }
+  };
+
+  const handleSetAlarm = () => {
+    if (!nextPrayer || !notificationEnabled) return;
+
+    const { name, time, minutesLeft } = nextPrayer;
+    const millisecondsUntilPrayer = minutesLeft * 60 * 1000;
+
+    // Clear existing alarm
+    if (alarmTimeout.current) {
+      clearTimeout(alarmTimeout.current);
+    }
+
+    // Reset notification sent flag for this prayer
+    const notificationKey = `${name}-${time}`;
+    notificationSentRef.current.delete(notificationKey);
+
+    // Set alarm
+    alarmTimeout.current = setTimeout(() => {
+      console.log(`[Alarm] 🔔 TRIGGERING NOTIFICATION for ${name} at ${time}`);
+      showPrayerTimeNotification(name, time);
+      notificationSentRef.current.add(notificationKey);
+      setAlarmSet(false);
+    }, millisecondsUntilPrayer);
+
+    setAlarmSet(true);
+    console.log(`[Alarm] ⏰ Alarm set for ${name} at ${time} (${minutesLeft} minutes from now)`);
+  };
+
+  const handleClearAlarm = () => {
+    if (alarmTimeout.current) {
+      clearTimeout(alarmTimeout.current);
+      alarmTimeout.current = null;
+    }
+    setAlarmSet(false);
+    console.log('[Alarm] ❌ Alarm cleared');
   };
 
   if (isLoading) {
@@ -215,17 +271,42 @@ export default function PrayerTimeList({ prayerTimes, isLoading }: PrayerTimeLis
 
       {/* Notification Enabled Badge */}
       {notificationEnabled && nextPrayer && (
-        <div className="bg-gradient-to-r from-gold/20 to-gold/10 border-2 border-gold/40 rounded-xl p-4 mb-6 text-center">
+        <div className="bg-gradient-to-r from-gold/20 to-gold/10 border-2 border-gold/40 rounded-xl p-4 mb-6">
           <div className="flex items-center justify-center gap-2 mb-2">
             <span className="text-2xl">🔔</span>
-            <p className="font-semibold text-primary">Notifikasi Aktif</p>
+            <p className="font-semibold text-primary">
+              {alarmSet ? '⏰ Alarm Aktif' : 'Notifikasi Aktif'}
+            </p>
           </div>
-          <p className="text-lg text-primary">
+          <p className="text-lg text-primary text-center mb-3">
             Sholat berikutnya: <span className="font-bold text-gold">{nextPrayer.name}</span>
             <span className="text-primary/70 text-base ml-2">
               ({nextPrayer.time} - {nextPrayer.minutesLeft > 0 ? `${nextPrayer.minutesLeft} menit lagi` : 'Sekarang!'})
             </span>
           </p>
+          <div className="flex gap-2 justify-center">
+            <button
+              onClick={handleTestNotification}
+              className="px-3 py-2 bg-white text-primary rounded-lg font-semibold hover:bg-soft transition-colors min-h-[44px] text-sm border-2 border-gold/30"
+            >
+              🔔 Test
+            </button>
+            {!alarmSet ? (
+              <button
+                onClick={handleSetAlarm}
+                className="px-3 py-2 bg-gold text-primary rounded-lg font-semibold hover:bg-gold/90 transition-colors min-h-[44px] text-sm"
+              >
+                ⏰ Set Alarm
+              </button>
+            ) : (
+              <button
+                onClick={handleClearAlarm}
+                className="px-3 py-2 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-colors min-h-[44px] text-sm"
+              >
+                ❌ Batal
+              </button>
+            )}
+          </div>
         </div>
       )}
 
