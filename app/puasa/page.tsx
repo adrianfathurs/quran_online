@@ -58,13 +58,15 @@ export default function PuasaPage() {
   // Update today's index when schedule changes
   useEffect(() => {
     if (schedule.length > 0) {
-      const today = new Date().toISOString().split('T')[0];
-      // Convert schedule dates to match format (API returns "dd/mm/yyyy")
-      const index = schedule.findIndex((s) => {
-        const [day, month, year] = s.tanggal.split('/');
-        const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-        return isoDate === today;
-      });
+      // Ramadhan 2026 starts on February 18, 2026
+      const ramadhanStartDate = new Date('2026-02-18');
+      const today = new Date();
+
+      // Calculate day difference
+      const dayDiff = Math.floor((today.getTime() - ramadhanStartDate.getTime()) / (1000 * 60 * 60 * 24));
+
+      // tanggal is day number (1-30)
+      const index = schedule.findIndex((s) => s.tanggal === dayDiff + 1);
       setTodayIndex(index >= 0 ? index : null);
     }
     setIsMounted(true);
@@ -143,9 +145,9 @@ export default function PuasaPage() {
 
   const fetchSchedule = async (province: string, city: string) => {
     setLoading(true);
-    const response = await getImsakiyahSchedule({ provinsi: province, kabkota: city });
-    if (response.status && response.data) {
-      setSchedule(response.data);
+    const scheduleData = await getImsakiyahSchedule({ provinsi: province, kabkota: city });
+    if (scheduleData.length > 0) {
+      setSchedule(scheduleData);
       saveCitySelection(province, city);
     }
     setLoading(false);
@@ -171,9 +173,12 @@ export default function PuasaPage() {
     }
   };
 
-  const formatDateSafe = (tanggal: string) => {
-    const [day, month, year] = tanggal.split('/');
-    const dateObj = new Date(`${year}-${month}-${day}`);
+  const formatDateSafe = (tanggal: number) => {
+    // Ramadhan 2026 starts on February 18, 2026
+    const ramadhanStartDate = new Date('2026-02-18');
+    const dateObj = new Date(ramadhanStartDate);
+    dateObj.setDate(ramadhanStartDate.getDate() + (tanggal - 1));
+
     return dateObj.toLocaleDateString('id-ID', {
       weekday: 'long',
       day: 'numeric',
@@ -315,7 +320,7 @@ export default function PuasaPage() {
                         <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold ${
                           isToday ? 'bg-gold text-white' : 'bg-soft text-primary'
                         }`}>
-                          {index + 1}
+                          {item.tanggal}
                         </div>
                         <span className="text-sm text-primary/60">{t.puasa.day}</span>
                       </div>

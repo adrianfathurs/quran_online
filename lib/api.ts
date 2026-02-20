@@ -272,7 +272,7 @@ export async function getCities(province: string): Promise<string[]> {
   }
 }
 
-export async function getImsakiyahSchedule(request: ImsakiyahRequest): Promise<ImsakiyahResponse> {
+export async function getImsakiyahSchedule(request: ImsakiyahRequest): Promise<ImsakiyahSchedule[]> {
   const url = 'https://equran.id/api/v2/imsakiyah';
 
   try {
@@ -292,15 +292,15 @@ export async function getImsakiyahSchedule(request: ImsakiyahRequest): Promise<I
     const json = await response.json();
     console.log('Imsakiyah schedule response:', json);
 
-    if (!json) {
+    if (!json || !json.data || !json.data.imsakiyah) {
       console.error('Invalid API response structure');
-      return { status: false, data: [] };
+      return [];
     }
 
-    return json;
+    return json.data.imsakiyah;
   } catch (error) {
     console.error('Error fetching imsakiyah schedule:', error);
-    return { status: false, data: [] };
+    return [];
   }
 }
 

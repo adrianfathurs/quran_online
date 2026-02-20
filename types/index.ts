@@ -129,7 +129,7 @@ export interface ImsakiyahRequest {
 }
 
 export interface ImsakiyahSchedule {
-  tanggal: string;
+  tanggal: number; // Day number (1-30)
   imsak: string;
   subuh: string;
   terbit: string;
@@ -140,9 +140,18 @@ export interface ImsakiyahSchedule {
   isya: string;
 }
 
+export interface ImsakiyahData {
+  provinsi: string;
+  kabkota: string;
+  hijriah: string;
+  masehi: string;
+  imsakiyah: ImsakiyahSchedule[];
+}
+
 export interface ImsakiyahResponse {
-  status: boolean;
-  data: ImsakiyahSchedule[];
+  code: number;
+  message: string;
+  data: ImsakiyahData;
 }
 
 // Language Types
