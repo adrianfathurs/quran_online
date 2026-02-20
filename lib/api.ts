@@ -228,12 +228,12 @@ export async function getProvinces(): Promise<string[]> {
     const json = await response.json();
     console.log('Provinces response:', json);
 
-    if (!json || !Array.isArray(json)) {
+    if (!json || !json.data || !Array.isArray(json.data)) {
       console.error('Invalid API response structure');
       return [];
     }
 
-    return json;
+    return json.data;
   } catch (error) {
     console.error('Error fetching provinces:', error);
     return [];
@@ -260,12 +260,12 @@ export async function getCities(province: string): Promise<string[]> {
     const json = await response.json();
     console.log('Cities response:', json);
 
-    if (!json || !Array.isArray(json)) {
+    if (!json || !json.data || !Array.isArray(json.data)) {
       console.error('Invalid API response structure');
       return [];
     }
 
-    return json;
+    return json.data;
   } catch (error) {
     console.error('Error fetching cities:', error);
     return [];
