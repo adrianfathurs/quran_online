@@ -297,3 +297,70 @@ export async function getImsakiyahSchedule(request: ImsakiyahRequest): Promise<I
     return { status: false, data: [] };
   }
 }
+
+// Reverse geocoding to get city and province from coordinates
+export interface GeocodeResult {
+  province: string;
+  city: string;
+  fullAddress: string;
+}
+
+export async function reverseGeocode(lat: number, lng: number): Promise<GeocodeResult | null> {
+  const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&accept-language=id-ID`;
+
+  try {
+    console.log('Reverse geocoding for:', lat, lng);
+
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Quran-Online-App', // Nominatim requires User-Agent
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to reverse geocode');
+    }
+
+    const data = await response.json();
+    console.log('Reverse geocode response:', data);
+
+    if (!data || !data.address) {
+      console.error('Invalid geocode response');
+      return null;
+    }
+
+    const address = data.address;
+
+    // Extract city and province from Nominatim response
+    // Nominatim uses different field names depending on the location type
+    let city = address.city || address.town || address.municipality || address.county || '';
+    let province = address.state || '';
+
+    // Clean up the city name (remove "Kota ", "Kab ", etc.)
+    city = city
+      .replace(/^Kota\s+/i, '')
+      .replace(/^Kabupaten\s+/i, '')
+      .replace(/^Kab\s+/i, '')
+      .trim();
+
+    // Clean up province name (remove "Provinsi ", etc.)
+    province = province
+      .replace(/^Provinsi\s+/i, '')
+      .replace(/^Prov\.\s+/i, '')
+      .trim();
+
+    if (!city || !province) {
+      console.error('Could not extract city or province from geocode result');
+      return null;
+    }
+
+    return {
+      province,
+      city,
+      fullAddress: data.display_name || '',
+    };
+  } catch (error) {
+    console.error('Error reverse geocoding:', error);
+    return null;
+  }
+}

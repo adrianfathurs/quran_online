@@ -3,7 +3,7 @@
 import { useTranslation } from '@/lib/i18n';
 import { useEffect, useState } from 'react';
 import type { ImsakiyahSchedule, Province, City } from '@/types';
-import { getProvinces, getCities, getImsakiyahSchedule, getUserLocation } from '@/lib/api';
+import { getProvinces, getCities, getImsakiyahSchedule, getUserLocation, reverseGeocode } from '@/lib/api';
 import { saveCitySelection, getCitySelection } from '@/lib/storage';
 
 export default function PuasaPage() {
@@ -79,11 +79,54 @@ export default function PuasaPage() {
       const position = await getUserLocation();
       const { latitude, longitude } = position.coords;
 
-      // For now, default to Jakarta if we can't reverse geocode
-      // In production, you'd use a reverse geocoding service
+      console.log('User location:', latitude, longitude);
+
+      // Reverse geocode to get city and province
+      const geocodeResult = await reverseGeocode(latitude, longitude);
+
+      if (geocodeResult) {
+        console.log('Geocode result:', geocodeResult);
+
+        // Get list of provinces to match
+        const provinceList = await getProvinces();
+
+        // Fuzzy matching for province
+        const matchedProvince = provinceList.find((prov) => {
+          const provLower = prov.lokasi.toLowerCase();
+          const geoProvLower = geocodeResult.province.toLowerCase();
+          return provLower === geoProvLower ||
+                 provLower.includes(geoProvLower) ||
+                 geoProvLower.includes(provLower);
+        });
+
+        if (matchedProvince) {
+          // Get cities for the matched province
+          const cityList = await getCities(matchedProvince.lokasi);
+
+          // Fuzzy matching for city
+          const matchedCity = cityList.find((city) => {
+            const cityLower = city.lokasi.toLowerCase();
+            const geoCityLower = geocodeResult.city.toLowerCase();
+            return cityLower === geoCityLower ||
+                   cityLower.includes(geoCityLower) ||
+                   geoCityLower.includes(cityLower);
+          });
+
+          if (matchedCity) {
+            setSelectedProvince(matchedProvince.lokasi);
+            setSelectedCity(matchedCity.lokasi);
+            setCurrentLocation(`${matchedCity.lokasi}, ${matchedProvince.lokasi} (Deteksi Lokasi)`);
+            await fetchSchedule(matchedProvince.lokasi, matchedCity.lokasi);
+            return;
+          }
+        }
+      }
+
+      // If geocoding or matching failed, default to Jakarta
+      console.log('Could not match location, defaulting to Jakarta');
       setSelectedProvince('DKI Jakarta');
       setSelectedCity('Jakarta Pusat');
-      setCurrentLocation('Jakarta Pusat, DKI Jakarta (Deteksi Lokasi)');
+      setCurrentLocation('Jakarta Pusat, DKI Jakarta (Lokasi Default)');
       await fetchSchedule('DKI Jakarta', 'Jakarta Pusat');
     } catch (error) {
       console.error('Error detecting location:', error);
@@ -91,7 +134,7 @@ export default function PuasaPage() {
       // Default to Jakarta
       setSelectedProvince('DKI Jakarta');
       setSelectedCity('Jakarta Pusat');
-      setCurrentLocation('Jakarta Pusat, DKI Jakarta');
+      setCurrentLocation('Jakarta Pusat, DKI Jakarta (Lokasi Default)');
       await fetchSchedule('DKI Jakarta', 'Jakarta Pusat');
     } finally {
       setDetectingLocation(false);
