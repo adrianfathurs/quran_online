@@ -2,55 +2,135 @@
 
 import { useTranslation } from '@/lib/i18n';
 import { useEffect, useState } from 'react';
-import type { PuasaSchedule } from '@/types';
-
-// Ramadhan 2026 (1447 H) - Estimated dates
-// Ramadhan 2026 is expected to start around February 18, 2026
-function generateRamadhan2026Schedule(): PuasaSchedule[] {
-  const schedule: PuasaSchedule[] = [];
-  const startDate = new Date('2026-02-18');
-  const imsakBase = new Date('2026-02-18T04:35:00');
-  const bukaBase = new Date('2026-02-18T18:12:00');
-
-  for (let i = 0; i < 30; i++) {
-    const date = new Date(startDate);
-    date.setDate(startDate.getDate() + i);
-
-    // Adjust times slightly for each day (approximate)
-    const imsakDate = new Date(imsakBase);
-    imsakDate.setDate(imsakBase.getDate() + i);
-    imsakDate.setSeconds(imsakDate.getSeconds() + (i * 45)); // Add ~45s per day
-
-    const bukaDate = new Date(bukaBase);
-    bukaDate.setDate(bukaBase.getDate() + i);
-    bukaDate.setSeconds(bukaDate.getSeconds() - (i * 30)); // Subtract ~30s per day
-
-    schedule.push({
-      date: date.toISOString().split('T')[0],
-      day: i + 1,
-      imsak: imsakDate.toTimeString().slice(0, 5),
-      buka: bukaDate.toTimeString().slice(0, 5),
-    });
-  }
-
-  return schedule;
-}
+import type { ImsakiyahSchedule, Province, City } from '@/types';
+import { getProvinces, getCities, getImsakiyahSchedule, getUserLocation } from '@/lib/api';
+import { saveCitySelection, getCitySelection } from '@/lib/storage';
 
 export default function PuasaPage() {
   const { t } = useTranslation();
   const [todayIndex, setTodayIndex] = useState<number | null>(null);
-  const [schedule] = useState<PuasaSchedule[]>(generateRamadhan2026Schedule());
+  const [schedule, setSchedule] = useState<ImsakiyahSchedule[]>([]);
   const [isMounted, setIsMounted] = useState(false);
+  const [loading, setLoading] = useState(true);
 
+  // City selection states
+  const [provinces, setProvinces] = useState<Province[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
+  const [selectedProvince, setSelectedProvince] = useState<string>('');
+  const [selectedCity, setSelectedCity] = useState<string>('');
+  const [showCitySelector, setShowCitySelector] = useState(false);
+  const [detectingLocation, setDetectingLocation] = useState(false);
+  const [locationError, setLocationError] = useState<string>('');
+  const [currentLocation, setCurrentLocation] = useState<string>('');
+
+  // Fetch provinces on mount
   useEffect(() => {
+    const fetchProvinces = async () => {
+      const data = await getProvinces();
+      setProvinces(data);
+    };
+    fetchProvinces();
+
+    // Load saved city selection
+    const savedCity = getCitySelection();
+    if (savedCity) {
+      setSelectedProvince(savedCity.province);
+      setSelectedCity(savedCity.city);
+      setCurrentLocation(`${savedCity.city}, ${savedCity.province}`);
+      fetchSchedule(savedCity.province, savedCity.city);
+    } else {
+      // Try to detect location if no saved city
+      detectUserLocation();
+    }
+  }, []);
+
+  // Fetch cities when province changes
+  useEffect(() => {
+    if (selectedProvince) {
+      const fetchCities = async () => {
+        const data = await getCities(selectedProvince);
+        setCities(data);
+      };
+      fetchCities();
+    }
+  }, [selectedProvince]);
+
+  // Update today's index when schedule changes
+  useEffect(() => {
+    if (schedule.length > 0) {
+      const today = new Date().toISOString().split('T')[0];
+      // Convert schedule dates to match format (API returns "dd/mm/yyyy")
+      const index = schedule.findIndex((s) => {
+        const [day, month, year] = s.tanggal.split('/');
+        const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        return isoDate === today;
+      });
+      setTodayIndex(index >= 0 ? index : null);
+    }
     setIsMounted(true);
-    const today = new Date().toISOString().split('T')[0];
-    const index = schedule.findIndex((s) => s.date === today);
-    setTodayIndex(index >= 0 ? index : null);
+    setLoading(false);
   }, [schedule]);
 
-  const formatDateSafe = (dateString: string) => {
-    const dateObj = new Date(dateString);
+  const detectUserLocation = async () => {
+    setDetectingLocation(true);
+    setLocationError('');
+
+    try {
+      const position = await getUserLocation();
+      const { latitude, longitude } = position.coords;
+
+      // For now, default to Jakarta if we can't reverse geocode
+      // In production, you'd use a reverse geocoding service
+      setSelectedProvince('DKI Jakarta');
+      setSelectedCity('Jakarta Pusat');
+      setCurrentLocation('Jakarta Pusat, DKI Jakarta (Deteksi Lokasi)');
+      await fetchSchedule('DKI Jakarta', 'Jakarta Pusat');
+    } catch (error) {
+      console.error('Error detecting location:', error);
+      setLocationError('Tidak dapat mendeteksi lokasi. Silakan pilih kota secara manual.');
+      // Default to Jakarta
+      setSelectedProvince('DKI Jakarta');
+      setSelectedCity('Jakarta Pusat');
+      setCurrentLocation('Jakarta Pusat, DKI Jakarta');
+      await fetchSchedule('DKI Jakarta', 'Jakarta Pusat');
+    } finally {
+      setDetectingLocation(false);
+    }
+  };
+
+  const fetchSchedule = async (province: string, city: string) => {
+    setLoading(true);
+    const response = await getImsakiyahSchedule({ provinsi: province, kabkota: city });
+    if (response.status && response.data) {
+      setSchedule(response.data);
+      saveCitySelection(province, city);
+    }
+    setLoading(false);
+  };
+
+  const handleProvinceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const province = e.target.value;
+    setSelectedProvince(province);
+    setSelectedCity('');
+    setCities([]);
+  };
+
+  const handleCityChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const city = e.target.value;
+    setSelectedCity(city);
+  };
+
+  const handleApplyCity = () => {
+    if (selectedProvince && selectedCity) {
+      fetchSchedule(selectedProvince, selectedCity);
+      setCurrentLocation(`${selectedCity}, ${selectedProvince}`);
+      setShowCitySelector(false);
+    }
+  };
+
+  const formatDateSafe = (tanggal: string) => {
+    const [day, month, year] = tanggal.split('/');
+    const dateObj = new Date(`${year}-${month}-${day}`);
     return dateObj.toLocaleDateString('id-ID', {
       weekday: 'long',
       day: 'numeric',
@@ -61,13 +141,105 @@ export default function PuasaPage() {
 
   return (
     <div className="container mx-auto px-4 py-12">
-      <div className="text-center mb-12">
+      <div className="text-center mb-8">
         <h1 className="text-4xl font-bold text-primary mb-4">{t.puasa.title}</h1>
-        <p className="text-lg text-primary/70">18 Februari 2026 - 20 Maret 2026</p>
+        <p className="text-lg text-primary/70">Ramadhan 1447 H</p>
+
+        {/* Current Location Display */}
+        <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <div className="bg-soft border border-primary/20 rounded-lg px-4 py-2">
+            <p className="text-sm text-primary/80">
+              <span className="font-semibold">Lokasi:</span> {currentLocation || 'Memuat...'}
+            </p>
+          </div>
+          <button
+            onClick={() => setShowCitySelector(!showCitySelector)}
+            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/80 transition-colors text-sm font-medium"
+          >
+            {showCitySelector ? 'Tutup' : 'Ganti Kota'}
+          </button>
+          {!detectingLocation && (
+            <button
+              onClick={detectUserLocation}
+              className="px-4 py-2 bg-gold text-white rounded-lg hover:bg-gold/80 transition-colors text-sm font-medium"
+              title="Deteksi lokasi otomatis"
+            >
+              📍 Deteksi Lokasi
+            </button>
+          )}
+        </div>
+
+        {detectingLocation && (
+          <p className="text-sm text-primary/60 mt-2">Mendeteksi lokasi...</p>
+        )}
+        {locationError && (
+          <p className="text-sm text-red-500 mt-2">{locationError}</p>
+        )}
       </div>
 
+      {/* City Selector */}
+      {showCitySelector && (
+        <div className="max-w-2xl mx-auto mb-8 bg-white border-2 border-soft/30 rounded-xl p-6">
+          <h3 className="text-lg font-semibold text-primary mb-4">Pilih Kota</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-primary/80 mb-2">
+                Provinsi
+              </label>
+              <select
+                value={selectedProvince}
+                onChange={handleProvinceChange}
+                className="w-full px-4 py-2 border-2 border-soft/30 rounded-lg focus:outline-none focus:border-gold bg-white"
+              >
+                <option value="">Pilih Provinsi</option>
+                {provinces.map((prov) => (
+                  <option key={prov.id} value={prov.lokasi}>
+                    {prov.lokasi}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-primary/80 mb-2">
+                Kota/Kabupaten
+              </label>
+              <select
+                value={selectedCity}
+                onChange={handleCityChange}
+                disabled={!selectedProvince || cities.length === 0}
+                className="w-full px-4 py-2 border-2 border-soft/30 rounded-lg focus:outline-none focus:border-gold bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
+              >
+                <option value="">Pilih Kota</option>
+                {cities.map((city) => (
+                  <option key={city.id} value={city.lokasi}>
+                    {city.lokasi}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <button
+              onClick={handleApplyCity}
+              disabled={!selectedProvince || !selectedCity}
+              className="px-6 py-2 bg-gold text-white rounded-lg hover:bg-gold/80 transition-colors font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
+            >
+              Terapkan
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Loading State */}
+      {loading && (
+        <div className="text-center py-12">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-gold border-t-transparent"></div>
+          <p className="text-primary/70 mt-4">Memuat jadwal imsakiyah...</p>
+        </div>
+      )}
+
       {/* Today's Status (if during Ramadhan) */}
-      {isMounted && todayIndex !== null && (
+      {isMounted && !loading && todayIndex !== null && (
         <div className="mb-12 bg-gradient-to-r from-gold/20 to-gold/10 border-2 border-gold/40 rounded-xl p-8 text-center">
           <p className="text-2xl font-bold text-primary mb-2">
             Hari ke-{todayIndex + 1} Ramadhan 1447 H
@@ -79,50 +251,52 @@ export default function PuasaPage() {
       )}
 
       {/* Schedule Grid */}
-      <div className="max-w-5xl mx-auto">
-        <div className="grid gap-4">
-          {schedule.map((item) => {
-            const isToday = isMounted && todayIndex !== null && item.day === todayIndex + 1;
-            const formattedDate = formatDateSafe(item.date);
+      {!loading && schedule.length > 0 && (
+        <div className="max-w-5xl mx-auto">
+          <div className="grid gap-4">
+            {schedule.map((item, index) => {
+              const isToday = isMounted && todayIndex !== null && index === todayIndex;
+              const formattedDate = formatDateSafe(item.tanggal);
 
-            return (
-              <div
-                key={item.day}
-                className={`bg-white border-2 rounded-xl p-6 ${
-                  isToday ? 'border-gold bg-gold/5' : 'border-soft/30'
-                }`}
-              >
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                  {/* Day & Date */}
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold ${
-                        isToday ? 'bg-gold text-white' : 'bg-soft text-primary'
-                      }`}>
-                        {item.day}
+              return (
+                <div
+                  key={index}
+                  className={`bg-white border-2 rounded-xl p-6 ${
+                    isToday ? 'border-gold bg-gold/5' : 'border-soft/30'
+                  }`}
+                >
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    {/* Day & Date */}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold ${
+                          isToday ? 'bg-gold text-white' : 'bg-soft text-primary'
+                        }`}>
+                          {index + 1}
+                        </div>
+                        <span className="text-sm text-primary/60">{t.puasa.day}</span>
                       </div>
-                      <span className="text-sm text-primary/60">{t.puasa.day}</span>
+                      <p className="text-sm text-primary/70">{formattedDate}</p>
                     </div>
-                    <p className="text-sm text-primary/70" suppressHydrationWarning>{formattedDate}</p>
-                  </div>
 
-                  {/* Times */}
-                  <div className="flex md:justify-end gap-8">
-                    <div className="text-center">
-                      <p className="text-xs text-primary/60 mb-1">{t.puasa.imsak}</p>
-                      <p className="text-lg font-semibold text-primary">{item.imsak}</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-xs text-primary/60 mb-1">{t.puasa.buka}</p>
-                      <p className="text-lg font-semibold text-gold">{item.buka}</p>
+                    {/* Times */}
+                    <div className="flex md:justify-end gap-8">
+                      <div className="text-center">
+                        <p className="text-xs text-primary/60 mb-1">{t.puasa.imsak}</p>
+                        <p className="text-lg font-semibold text-primary">{item.imsak}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs text-primary/60 mb-1">{t.puasa.buka}</p>
+                        <p className="text-lg font-semibold text-gold">{item.maghrib}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Motivational Footer */}
       <div className="mt-16 text-center max-w-3xl mx-auto">

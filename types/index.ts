@@ -119,6 +119,39 @@ export interface PuasaSchedule {
   buka: string;
 }
 
+// Imsakiyah API Types
+export interface Province {
+  lokasi: string;
+  id: string;
+}
+
+export interface City {
+  lokasi: string;
+  id: string;
+}
+
+export interface ImsakiyahRequest {
+  provinsi: string;
+  kabkota: string;
+}
+
+export interface ImsakiyahSchedule {
+  tanggal: string;
+  imsak: string;
+  subuh: string;
+  terbit: string;
+  dhuha: string;
+  dzuhur: string;
+  ashar: string;
+  maghrib: string;
+  isya: string;
+}
+
+export interface ImsakiyahResponse {
+  status: boolean;
+  data: ImsakiyahSchedule[];
+}
+
 // Language Types
 export type Language = 'id' | 'en';
 

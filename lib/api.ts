@@ -1,4 +1,4 @@
-import type { PrayerScheduleResponse, Surah, SurahDetail, Location } from '@/types';
+import type { PrayerScheduleResponse, Surah, SurahDetail, Location, Province, City, ImsakiyahRequest, ImsakiyahResponse } from '@/types';
 
 // Major Indonesian Cities for quick selection
 export const MAJOR_CITIES: Location[] = [
@@ -211,4 +211,89 @@ export function getHijriDate(): string {
   }).format(now);
 
   return islamicDate;
+}
+
+// Imsakiyah API - Using EQuran.id
+export async function getProvinces(): Promise<Province[]> {
+  const url = 'https://equran.id/api/v2/imsakiyah/provinsi';
+
+  try {
+    console.log('Fetching provinces from EQuran.id');
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch provinces');
+    }
+
+    const json = await response.json();
+    console.log('Provinces response:', json);
+
+    if (!json || !json.data) {
+      console.error('Invalid API response structure');
+      return [];
+    }
+
+    return json.data;
+  } catch (error) {
+    console.error('Error fetching provinces:', error);
+    return [];
+  }
+}
+
+export async function getCities(province: string): Promise<City[]> {
+  const url = `https://equran.id/api/v2/imsakiyah/kabkota?provinsi=${encodeURIComponent(province)}`;
+
+  try {
+    console.log(`Fetching cities for province: ${province}`);
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch cities');
+    }
+
+    const json = await response.json();
+    console.log('Cities response:', json);
+
+    if (!json || !json.data) {
+      console.error('Invalid API response structure');
+      return [];
+    }
+
+    return json.data;
+  } catch (error) {
+    console.error('Error fetching cities:', error);
+    return [];
+  }
+}
+
+export async function getImsakiyahSchedule(request: ImsakiyahRequest): Promise<ImsakiyahResponse> {
+  const url = 'https://equran.id/api/v2/imsakiyah';
+
+  try {
+    console.log('Fetching imsakiyah schedule for:', request);
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch imsakiyah schedule');
+    }
+
+    const json = await response.json();
+    console.log('Imsakiyah schedule response:', json);
+
+    if (!json) {
+      console.error('Invalid API response structure');
+      return { status: false, data: [] };
+    }
+
+    return json;
+  } catch (error) {
+    console.error('Error fetching imsakiyah schedule:', error);
+    return { status: false, data: [] };
+  }
 }
