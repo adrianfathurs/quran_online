@@ -1,4 +1,4 @@
-import type { PrayerScheduleResponse, Surah, SurahDetail, Location, Province, City, ImsakiyahRequest, ImsakiyahResponse } from '@/types';
+import type { PrayerScheduleResponse, Surah, SurahDetail, Location, ImsakiyahRequest, ImsakiyahResponse } from '@/types';
 
 // Major Indonesian Cities for quick selection
 export const MAJOR_CITIES: Location[] = [
@@ -214,7 +214,7 @@ export function getHijriDate(): string {
 }
 
 // Imsakiyah API - Using EQuran.id
-export async function getProvinces(): Promise<Province[]> {
+export async function getProvinces(): Promise<string[]> {
   const url = 'https://equran.id/api/v2/imsakiyah/provinsi';
 
   try {
@@ -228,24 +228,30 @@ export async function getProvinces(): Promise<Province[]> {
     const json = await response.json();
     console.log('Provinces response:', json);
 
-    if (!json || !json.data) {
+    if (!json || !Array.isArray(json)) {
       console.error('Invalid API response structure');
       return [];
     }
 
-    return json.data;
+    return json;
   } catch (error) {
     console.error('Error fetching provinces:', error);
     return [];
   }
 }
 
-export async function getCities(province: string): Promise<City[]> {
-  const url = `https://equran.id/api/v2/imsakiyah/kabkota?provinsi=${encodeURIComponent(province)}`;
+export async function getCities(province: string): Promise<string[]> {
+  const url = `https://equran.id/api/v2/imsakiyah/kabkota`;
 
   try {
     console.log(`Fetching cities for province: ${province}`);
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ provinsi: province }),
+    });
 
     if (!response.ok) {
       throw new Error('Failed to fetch cities');
@@ -254,12 +260,12 @@ export async function getCities(province: string): Promise<City[]> {
     const json = await response.json();
     console.log('Cities response:', json);
 
-    if (!json || !json.data) {
+    if (!json || !Array.isArray(json)) {
       console.error('Invalid API response structure');
       return [];
     }
 
-    return json.data;
+    return json;
   } catch (error) {
     console.error('Error fetching cities:', error);
     return [];

@@ -2,7 +2,7 @@
 
 import { useTranslation } from '@/lib/i18n';
 import { useEffect, useState } from 'react';
-import type { ImsakiyahSchedule, Province, City } from '@/types';
+import type { ImsakiyahSchedule } from '@/types';
 import { getProvinces, getCities, getImsakiyahSchedule, getUserLocation, reverseGeocode } from '@/lib/api';
 import { saveCitySelection, getCitySelection } from '@/lib/storage';
 
@@ -92,7 +92,7 @@ export default function PuasaPage() {
 
         // Fuzzy matching for province
         const matchedProvince = provinceList.find((prov) => {
-          const provLower = prov.lokasi.toLowerCase();
+          const provLower = prov.toLowerCase();
           const geoProvLower = geocodeResult.province.toLowerCase();
           return provLower === geoProvLower ||
                  provLower.includes(geoProvLower) ||
@@ -101,11 +101,11 @@ export default function PuasaPage() {
 
         if (matchedProvince) {
           // Get cities for the matched province
-          const cityList = await getCities(matchedProvince.lokasi);
+          const cityList = await getCities(matchedProvince);
 
           // Fuzzy matching for city
           const matchedCity = cityList.find((city) => {
-            const cityLower = city.lokasi.toLowerCase();
+            const cityLower = city.toLowerCase();
             const geoCityLower = geocodeResult.city.toLowerCase();
             return cityLower === geoCityLower ||
                    cityLower.includes(geoCityLower) ||
@@ -113,10 +113,10 @@ export default function PuasaPage() {
           });
 
           if (matchedCity) {
-            setSelectedProvince(matchedProvince.lokasi);
-            setSelectedCity(matchedCity.lokasi);
-            setCurrentLocation(`${matchedCity.lokasi}, ${matchedProvince.lokasi} (Deteksi Lokasi)`);
-            await fetchSchedule(matchedProvince.lokasi, matchedCity.lokasi);
+            setSelectedProvince(matchedProvince);
+            setSelectedCity(matchedCity);
+            setCurrentLocation(`${matchedCity}, ${matchedProvince} (Deteksi Lokasi)`);
+            await fetchSchedule(matchedProvince, matchedCity);
             return;
           }
         }
@@ -236,8 +236,8 @@ export default function PuasaPage() {
               >
                 <option value="">Pilih Provinsi</option>
                 {provinces.map((prov) => (
-                  <option key={prov.id} value={prov.lokasi}>
-                    {prov.lokasi}
+                  <option key={prov} value={prov}>
+                    {prov}
                   </option>
                 ))}
               </select>
@@ -254,8 +254,8 @@ export default function PuasaPage() {
               >
                 <option value="">Pilih Kota</option>
                 {cities.map((city) => (
-                  <option key={city.id} value={city.lokasi}>
-                    {city.lokasi}
+                  <option key={city} value={city}>
+                    {city}
                   </option>
                 ))}
               </select>

@@ -120,15 +120,8 @@ export interface PuasaSchedule {
 }
 
 // Imsakiyah API Types
-export interface Province {
-  lokasi: string;
-  id: string;
-}
-
-export interface City {
-  lokasi: string;
-  id: string;
-}
+export type Province = string;
+export type City = string;
 
 export interface ImsakiyahRequest {
   provinsi: string;
