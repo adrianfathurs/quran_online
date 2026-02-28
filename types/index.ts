@@ -163,6 +163,7 @@ export interface Translations {
     sholat: string;
     quran: string;
     puasa: string;
+    kiblat: string;
   };
   home: {
     title: string;

@@ -14,8 +14,8 @@ export default function PuasaPage() {
   const [loading, setLoading] = useState(true);
 
   // City selection states
-  const [provinces, setProvinces] = useState<Province[]>([]);
-  const [cities, setCities] = useState<City[]>([]);
+  const [provinces, setProvinces] = useState<string[]>([]);
+  const [cities, setCities] = useState<string[]>([]);
   const [selectedProvince, setSelectedProvince] = useState<string>('');
   const [selectedCity, setSelectedCity] = useState<string>('');
   const [showCitySelector, setShowCitySelector] = useState(false);

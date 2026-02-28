@@ -14,6 +14,7 @@ export default function Header() {
     { href: '/sholat', label: t.nav.sholat },
     { href: '/quran', label: t.nav.quran },
     { href: '/puasa', label: t.nav.puasa },
+    { href: '/kiblat', label: t.nav.kiblat },
   ];
 
   const isActive = (href: string) => {

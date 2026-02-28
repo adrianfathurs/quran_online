@@ -1,4 +1,4 @@
-import type { PrayerScheduleResponse, Surah, SurahDetail, Location, ImsakiyahRequest, ImsakiyahResponse } from '@/types';
+import type { PrayerScheduleResponse, Surah, SurahDetail, Location, ImsakiyahRequest, ImsakiyahResponse, ImsakiyahSchedule } from '@/types';
 
 // Major Indonesian Cities for quick selection
 export const MAJOR_CITIES: Location[] = [

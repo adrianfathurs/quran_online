@@ -8,6 +8,7 @@ const translations: Record<Language, Translations> = {
       sholat: 'Jadwal Sholat',
       quran: "Al-Qur'an",
       puasa: 'Jadwal Puasa',
+      kiblat: 'Arah Kiblat',
     },
     home: {
       title: 'Selamat Datang',
@@ -49,6 +50,7 @@ const translations: Record<Language, Translations> = {
       sholat: 'Prayer Times',
       quran: "Quran",
       puasa: 'Fasting Schedule',
+      kiblat: 'Qibla Direction',
     },
     home: {
       title: 'Welcome',
